@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparatif Éthique Policière</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; padding-top: 20px; padding-bottom: 50px; }
+        .scenario-card { margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .scenario-header { background-color: #212529; color: white; font-weight: 600; }
+        .question-block { padding: 10px 20px; }
+        .scale-labels { font-size: 0.8rem; display: flex; justify-content: space-between; color: #666; margin-bottom: 5px;}
+        
+        /* Styles pour le tableau de résultats */
+        .table-comparison th { background-color: #e9ecef; vertical-align: middle; }
+        .table-comparison td { vertical-align: middle; }
+        
+        /* Style pour les écarts importants (> 2) */
+        .diff-high-text { 
+            color: #dc3545 !important; 
+            font-weight: 900 !important; 
+            font-size: 1.2em;
+        } 
+        
+        .sanction-label {
+            display: block;
+            font-size: 0.75em;
+            font-weight: normal;
+            color: #555;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center mb-5">
+        <h1 class="display-6">Sondage sur la Probité Policière</h1>
+        <p class="lead">Comparez votre jugement éthique aux moyennes des policiers américains.</p>
+        <p class="text-muted small">Les résultats en <span class="text-danger fw-bold">ROUGE</span> indiquent un désaccord majeur (> 2 points).</p>
+    </div>
+
+    <form id="quizForm">
+        <div id="questionsContainer"></div>
+        <div class="d-grid gap-2 col-md-6 mx-auto mt-5 mb-5">
+            <button type="submit" class="btn btn-primary btn-lg">Voir les résultats comparatifs</button>
+        </div>
+    </form>
+
+    <div id="resultSection" style="display:none;">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0 text-center">Tableau Comparatif des Scores</h3>
+            </div>
+            <div class="card-body">
+                
+                <div class="alert alert-light border" id="globalFeedback"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-comparison text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th rowspan="2" style="width: 30%; text-align: left;">Étude de cas</th>
+                                <th colspan="2">Sévérité (Gravité)</th>
+                                <th colspan="2">Sanction (Punition)</th>
+                            </tr>
+                            <tr>
+                                <th>Votre Score<br><small>(1-5)</small></th>
+                                <th>Police<br><small>(Moyenne)</small></th>
+                                <th>Votre Score<br><small>(1-6)</small></th>
+                                <th>Police<br><small>(Moyenne)</small></th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-warning mt-3 small">
+                    <strong>Légende :</strong>
+                    <ul class="mb-0">
+                        <li>Les chiffres en <span class="text-danger fw-bold">ROUGE</span> indiquent une différence de plus de 2 points avec la moyenne policière.</li>
+                        <li>Échelle Sanction : 1=Aucun, 2=Verbal, 3=Écrit, 4=Suspension, 5=Rétrogradation, 6=Congédiement.</li>
+                    </ul>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button onclick="location.reload()" class="btn btn-outline-secondary">Recommencer</button>
+                    <button onclick="window.print()" class="btn btn-secondary">Imprimer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Données des Scénarios
+    const scenarios = [
+        { id: 1, title: "Entreprise de sécurité", text: "Un agent dirige sa propre entreprise de sécurité privée pendant ses congés." },
+        { id: 2, title: "Cadeaux mineurs", text: "Un agent accepte régulièrement repas et cigarettes de faible valeur sans les solliciter." },
+        { id: 3, title: "Pot-de-vin Vitesse", text: "Un policier accepte la moitié de l'amende pour ne pas émettre de contravention de vitesse." },
+        { id: 4, title: "Cadeaux vacances", text: "Un policier apprécié reçoit nourriture et alcool des commerçants pendant ses vacances." },
+        { id: 5, title: "Vol scène de crime", text: "Un policier vole une montre sur une scène de cambriolage et signale qu'elle a été volée par les cambrioleurs." },
+        { id: 6, title: "Kickback Garage", text: "Un agent reçoit 5% de commission pour référer des accidents à un atelier de carrosserie." },
+        { id: 7, title: "Mécanique Superviseur", text: "Un superviseur offre des congés à un policier en échange de la réparation de sa voiture personnelle." },
+        { id: 8, title: "Couverture Alcool", text: "Un policier raccompagne un collègue ivre accidenté au lieu de rapporter l'accident." },
+        { id: 9, title: "Verres Gratuits", text: "Un policier ignore la fermeture tardive d'un bar en échange de verres gratuits." },
+        { id: 10, title: "Force Excessive", text: "Deux policiers frappent un suspect maîtrisé pour le punir d'avoir fui." },
+        { id: 11, title: "Vol Portefeuille", text: "Un policier garde l'argent d'un portefeuille trouvé et rapporte l'objet comme perdu." }
+    ];
+
+    // 2. Données de Benchmark
+    const benchmarks = {
+        1: { sev: 1.46, sanScore: 1.48 },
+        2: { sev: 2.60, sanScore: 2.31 },
+        3: { sev: 4.92, sanScore: 4.81 },
+        4: { sev: 2.84, sanScore: 2.64 },
+        5: { sev: 4.95, sanScore: 4.88 },
+        6: { sev: 4.50, sanScore: 4.26 },
+        7: { sev: 4.18, sanScore: 3.96 },
+        8: { sev: 3.03, sanScore: 2.86 },
+        9: { sev: 4.54, sanScore: 4.28 },
+        10: { sev: 4.05, sanScore: 3.70 },
+        11: { sev: 4.85, sanScore: 4.69 }
+    };
+
+    // 3. Mapping des Sanctions (Texte)
+    const sanctionMap = {
+        1: "Aucun",
+        2: "Réprimande verbale",
+        3: "Réprimande écrite",
+        4: "Suspension sans solde",
+        5: "Rétrogradation",
+        6: "Congédiement"
+    };
+
+    const container = document.getElementById('questionsContainer');
+
+    // 4. Génération du formulaire HTML
+    scenarios.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card scenario-card';
+        card.innerHTML = `
+            <div class="card-header scenario-header">Scénario ${s.id} : ${s.title}</div>
+            <div class="card-body">
+                <p class="card-text">${s.text}</p>
+                <div class="row mt-3">
+                    <div class="col-md-6 question-block border-end">
+                        <label class="form-label fw-bold text-primary">Q1: Sévérité (1-5)</label>
+                        <div class="scale-labels"><span>Peu grave</span><span>Très grave</span></div>
+                        <div class="d-flex justify-content-between px-2">
+                            ${[1,2,3,4,5].map(v => `
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="sev_${s.id}" id="sev_${s.id}_${v}" value="${v}" required>
+                                    <label class="form-check-label" for="sev_${s.id}_${v}">${v}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="col-md-6 question-block">
+                        <label class="form-label fw-bold text-primary">Q2: Sanction (1-6)</label>
+                        <select class="form-select" name="san_${s.id}" required>
+                            <option value="" selected disabled>Choisir une sanction...</option>
+                            <option value="1">1. Aucun</option>
+                            <option value="2">2. Réprimande verbale</option>
+                            <option value="3">3. Réprimande écrite</option>
+                            <option value="4">4. Suspension sans solde</option>
+                            <option value="5">5. Rétrogradation</option>
+                            <option value="6">6. Congédiement</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // 5. Traitement et Calcul
+    document.getElementById('quizForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = ''; 
+
+        let significantDiffCount = 0;
+
+        scenarios.forEach(s => {
+            // Récupération des valeurs utilisateur
+            const userSev = parseInt(formData.get(`sev_${s.id}`));
+            const userSan = parseInt(formData.get(`san_${s.id}`));
+            const userSanLabel = sanctionMap[userSan]; // Texte de la sanction
+            
+            // Récupération des benchmarks
+            const bench = benchmarks[s.id];
+            
+            // Calcul des différences (Valeur absolue)
+            const diffSev = Math.abs(userSev - bench.sev);
+            const diffSan = Math.abs(userSan - bench.sanScore);
+
+            // Détermination du style (Rouge si diff > 2)
+            // On applique la classe couleur uniquement au chiffre
+            const sevClass = diffSev > 2 ? "diff-high-text" : "";
+            const sanClass = diffSan > 2 ? "diff-high-text" : "";
+
+            if(diffSev > 2 || diffSan > 2) {
+                significantDiffCount++;
+            }
+
+            // Construction de la ligne
+            const row = `
+                <tr>
+                    <td class="text-start fw-bold">Scénario ${s.id} : <br>${s.title}</td>
+                    
+                    <td><span class="${sevClass}">${userSev}</span></td>
+                    <td class="text-muted">${bench.sev}</td>
+                    
+                    <td>
+                        <span class="${sanClass}">${userSan}</span>
+                        <span class="sanction-label">(${userSanLabel})</span>
+                    </td>
+                    <td class="text-muted">${bench.sanScore}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+        // Feedback Global
+        const globalFeedback = document.getElementById('globalFeedback');
+        if(significantDiffCount > 0) {
+            globalFeedback.innerHTML = `<span class="text-danger fw-bold">Attention :</span> Vous avez ${significantDiffCount} réponse(s) qui s'écartent de plus de 2 points de la moyenne policière.`;
+        } else {
+            globalFeedback.innerHTML = `<span class="text-success fw-bold">Alignement :</span> Vos réponses sont globalement cohérentes avec les moyennes policières (aucun écart > 2).`;
+        }
+
+        // Afficher résultats
+        document.getElementById('resultSection').style.display = 'block';
+        document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+    });
+</script>
+
+</body>
+</html>
